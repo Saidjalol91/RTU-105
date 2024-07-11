@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+    <Appenders>
+        <Console name="console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d %5p [%c] %m%n" />
+        </Console>
+        <JDBC name="dbLogger"  tableName="TB_SQL_LOGS">
+            <ConnectionFactory class="com.roviet.common.web.log.ConnectionFactory" method="getConnection"/>
+            <Column name="ENTRY_DATE" isEventTimestamp="true"/>
+            <Column name="LOG_ID"     pattern="%u"/>
+            <Column name="USER_ID"    pattern="%x"/>
+            <Column name="LOGGER"     pattern="%logger"/>
+            <Column name="LOG_LEVEL"  pattern="%level"/>
+            <Column name="MESSAGE"    pattern="%m"/>
+            <Column name="EXCEPTION"  pattern="%throwable"/>
+        </JDBC>
+        <RollingFile name="remsLog" fileName="/app/web/rems/logs/rems.log" filePattern="/app/web/rems/logs/rems-%d{yyyyMMdd}.log">
+            <PatternLayout pattern="%d %-5p %C{1} - %m%n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy/>
+                <SizeBasedTriggeringPolicy size="20MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="30"/>
+        </RollingFile>
+        <RollingFile name="dummyRemsLog" fileName="/app/web/rems/logs/dummy-rems.log" filePattern="/app/web/rems/logs/dummy-rems-%d{yyyyMMdd}.log">
+            <PatternLayout pattern="%d %-5p %C{1} - %m%n"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy/>
+                <SizeBasedTriggeringPolicy size="20MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="30"/>
+        </RollingFile>
+    </Appenders>
+    <Loggers>
+    	<Logger name="rems.log" level="ERROR" additivity="false">
+            <AppenderRef ref="remsLog" />
+            <AppenderRef ref="console" />
+    	</Logger>
+        <Logger name="java.sql" level="ERROR" additivity="false">
+            <AppenderRef ref="console" />
+        </Logger>
+        <Logger name="egovframework" level="ERROR" additivity="false">
+            <AppenderRef ref="console" />
+        </Logger>
+
+          <!-- log SQL with timing information, post execution -->
+        <Logger name="jdbc.connection" level="ERROR" additivity="false">
+            <AppenderRef ref="console" />
+        </Logger>
+        <Logger name="jdbc.audit" level="ERROR" additivity="false">
+            <AppenderRef ref="console" />
+        </Logger>
+        <Logger name="jdbc.sqlonly" level="ERROR" additivity="false">
+            <AppenderRef ref="console" />
+        </Logger>
+        <Logger name="jdbc.sqltiming" level="ERROR" additivity="false">
+            <AppenderRef ref="console" />
+        </Logger>
+        <Logger name="jdbc.resultset" level="ERROR" additivity="false">
+            <AppenderRef ref="console" />
+        </Logger>
+        <Logger name="jdbc.resultsettable" level="ERROR" additivity="false">
+            <AppenderRef ref="console" />
+        </Logger>
+        <Logger name="org.springframework" level="ERROR" additivity="false">
+            <AppenderRef ref="console" />
+        </Logger>
+        <Logger name="dummy.rems.log" level="DEBUG" additivity="false">
+            <AppenderRef ref="dummyRemsLog" />
+        </Logger>
+        <Root level="ERROR">
+            <AppenderRef ref="console" />
+        </Root>
+    </Loggers>
+</Configuration>

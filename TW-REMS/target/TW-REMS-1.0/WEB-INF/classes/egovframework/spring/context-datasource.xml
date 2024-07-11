@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" 
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	   xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+	   xmlns:p="http://www.springframework.org/schema/p"
+	   xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+                           http://www.springframework.org/schema/jdbc  http://www.springframework.org/schema/jdbc/spring-jdbc-4.0.xsd">
+
+    <bean id="egov.propertyConfigurer" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <property name="locations">
+            <list>
+                <value>classpath:/egovframework/property/globals.properties</value>
+            </list>
+        </property>
+    </bean>
+    
+	<!-- 메인 -->
+	<bean id="dataSource_main_bean" class="org.apache.commons.dbcp2.BasicDataSource" destroy-method="close">
+		<property name="driverClassName" value="${database.default.DriverClassName}"/>
+        <property name="url" value="${database.default.Url}"/> 
+		<property name="username" value="${database.default.UserName}"/>
+		<property name="password" value="${database.default.Password}"/>
+	    <property name="validationQuery" value="SELECT 1 A"/>
+	    <property name="testWhileIdle" value="true"/>
+	    <property name="timeBetweenEvictionRunsMillis" value="7200000"/>        
+    </bean>
+	<bean id="dataSource" class="net.sf.log4jdbc.Log4jdbcProxyDataSource">
+		<constructor-arg ref="dataSource_main_bean" />
+		<property name="logFormatter">
+			<bean class="net.sf.log4jdbc.tools.Log4JdbcCustomFormatter">
+				<property name="loggingType" value="MULTI_LINE" />
+				<property name="sqlPrefix" value="SQL : "/>
+			</bean>
+		</property>
+	</bean>
+
+	<!-- SMS 발송용 -->
+	<bean id="dataSource_sms_bean" class="org.apache.commons.dbcp2.BasicDataSource" destroy-method="close">
+		<property name="driverClassName" value="${database.sms.DriverClassName}"/>
+        <property name="url" value="${database.sms.Url}"/> 
+		<property name="username" value="${database.sms.UserName}"/>
+		<property name="password" value="${database.sms.Password}"/>
+	    <property name="validationQuery" value="SELECT 1 A"/>
+	    <property name="testWhileIdle" value="true"/>
+	    <property name="timeBetweenEvictionRunsMillis" value="7200000"/>        
+    </bean>
+	
+	<bean id="dataSource_sms" class="net.sf.log4jdbc.Log4jdbcProxyDataSource">
+		<constructor-arg ref="dataSource_sms_bean" />
+		<property name="logFormatter">
+			<bean class="net.sf.log4jdbc.tools.Log4JdbcCustomFormatter">
+				<property name="loggingType" value="MULTI_LINE" />
+				<property name="sqlPrefix" value="SQL : "/>
+			</bean>
+		</property>
+	</bean>
+
+    <bean id="queryLogger" class="com.roviet.common.web.log.MybatisQueryLogBean">
+    	<property name="adminSessionName" value="admin"/>
+    	<property name="clientSessionName" value="client"/>
+    </bean>
+
+	<!--  Redis SSO 설정 - 끝 -->
+
+	<bean id="javaMailSender" class ="org.springframework.mail.javamail.JavaMailSenderImpl">
+		<property name="host" value="${Globals.mail.smtp.host}" />
+		<property name="port" value="${Globals.mail.smtp.port}" />
+		<property name="username" value="${Globals.mail.smtp.user}" />
+		<property name="password" value="${Globals.mail.smtp.pass}" />
+		<property name="javaMailProperties">
+		<props>
+			<prop key="mail.smtp.auth">true</prop>
+			<prop key="mail.smtp.starttls.enable">true</prop>
+		</props>
+		</property>
+	</bean>
+
+</beans>

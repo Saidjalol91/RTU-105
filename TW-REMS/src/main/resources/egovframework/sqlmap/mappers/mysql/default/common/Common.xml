@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="CommonDao">
+	<select id="CommonDao.getCodeList" parameterType="codeVo" resultType="codeVo">
+		SELECT DIVISION AS division, CODE1 AS code1, CODE2 AS code2, CODE3 AS code3, VALUE1 AS value1, VALUE2 AS value2, VALUE3 AS value3, 
+		       ORDER_NO AS orderNo, REG_MEM_IDX AS regMemIdx, DATE_FORMAT(REG_DT,'%Y-%m-%d %H:%i:%s') AS regDt, 
+		       DATE_FORMAT(EXP_DT,'%Y-%m-%d %H:%i:%s') AS expDt
+		FROM   TB_COMMON_CODE
+		WHERE  DIVISION = #{division}
+		<if test="code1!=null and code1!=''">
+		AND    CODE1    = #{code1}
+		</if>
+		<if test="code2!=null and code2!=''">
+		AND    CODE2    = #{code2}
+		</if>
+		<if test="code3!=null and code3!=''">
+		AND    CODE3    = #{code3}
+		</if>
+		<if test="expDt!=null and expDt!=''">
+		AND    EXP_DT   <![CDATA[>]]> STR_TO_DATE(#{expDt},'%Y-%m-%d %H:%i:%s')
+		</if>
+		<if test="expDt==null or expDt==''">
+		AND    EXP_DT   <![CDATA[>]]> NOW()
+		</if>
+		ORDER  BY ORDER_NO ASC
+	</select>
+
+	<select id="CommonDao.getCode" parameterType="codeVo" resultType="codeVo">
+		SELECT DIVISION AS division, CODE1 AS code1, CODE2 AS code2, CODE3 AS code3, VALUE1 AS value1, VALUE2 AS value2, VALUE3 AS value3, 
+		       ORDER_NO AS orderNo, REG_MEM_IDX AS regMemIdx, DATE_FORMAT(REG_DT,'%Y-%m-%d %H:%i:%s') AS regDt, 
+		       DATE_FORMAT(EXP_DT,'%Y-%m-%d %H:%i:%s') AS expDt
+		FROM   TB_COMMON_CODE
+		WHERE  DIVISION = #{division}
+		<if test="code1!=null and code1!=''">
+		AND    CODE1    = #{code1}
+		</if>
+		<if test="code2!=null and code2!=''">
+		AND    CODE2    = #{code2}
+		</if>
+		<if test="code3!=null and code3!=''">
+		AND    CODE3    = #{code3}
+		</if>
+		<if test="expDt!=null and expDt!=''">
+		AND    EXP_DT   <![CDATA[>]]> STR_TO_DATE(#{expDt},'%Y-%m-%d %H:%i:%s')
+		</if>
+		<if test="expDt==null or expDt==''">
+		AND    EXP_DT   <![CDATA[>]]> NOW()
+		</if>
+		ORDER  BY ORDER_NO ASC
+		LIMIT  1
+	</select>
+	
+</mapper>

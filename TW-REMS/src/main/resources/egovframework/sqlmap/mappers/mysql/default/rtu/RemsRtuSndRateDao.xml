@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="RemsRtuSndRateDao">	
+	<select id="RemsRtuSndRateDao.getRtuSndStatusList" parameterType="map" resultType="rtuStatusVo">
+		SELECT A.IMEI AS imei, A.ENRGY AS enrgy, A.MACHN AS machn, A.MULTI AS multi, 
+		       A.LAST_REMS_SND_DT AS lastRemsSndDt, A.DUMMY_STATUS AS dummyStatus,
+		       CONCAT(B.RCV_DATA<![CDATA[->>]]>'$."DATA"',IFNULL(CONCAT('\r\n',C.RCV_DATA<![CDATA[->>]]>'$."DATA"'),'')) AS originalData
+		FROM   (
+		        SELECT A.IMEI, A.ENRGY, IF(A.ENRGY='03','*',A.MACHN) AS MACHN, A.MULTI, MIN(A.LAST_COM_DT) AS LAST_COM_DT,
+		               DATE_FORMAT(MAX(A.LAST_REMS_SND_DT),'%Y-%m-%d %H:%i:%s') AS LAST_REMS_SND_DT,
+		               IF(B.DUMMY_SND_YN='Y' AND C.STATUS='RUN','RUN','STOP') DUMMY_STATUS
+		        FROM   TB_COMMON_CODE D,
+		               TB_RTU B,
+		               TB_RTU_ENRGY_TYPE A,
+		               TB_REMS_DUMMY_STATUS C
+		        WHERE  D.DIVISION = 'REMS_DUMMY_STATUS'
+		        AND    D.CODE1 = '*'
+		        AND    D.VALUE1 = 'RUN'
+		        AND    D.EXP_DT <![CDATA[>]]> NOW()
+		        AND    B.EXP_DT <![CDATA[>]]> NOW()
+		        AND    B.IMEI = A.IMEI
+		        AND    A.EXP_DT <![CDATA[>]]> NOW()
+		        AND    A.IMEI = C.IMEI
+		        AND    A.ENRGY = C.ENRGY
+		        AND    IF(A.ENRGY='03','*',A.MACHN) = C.MACHN
+		        AND    A.MULTI = C.MULTI
+		        AND    IF(B.DUMMY_SND_YN='Y' AND C.STATUS='RUN','RUN','STOP') = 'RUN'
+		        GROUP  BY A.IMEI, A.ENRGY, IF(A.ENRGY='03','*',A.MACHN), A.MULTI
+		       ) A STRAIGHT_JOIN
+		       TB_RTU_RCV_DATA B
+		       LEFT OUTER JOIN TB_RTU_RCV_DATA C
+		            ON  B.IMEI = C.IMEI 
+		            AND B.ENRGY = C.ENRGY 
+		            AND C.ENRGY = '03'
+		            AND C.MACHN = '02'
+		            AND A.MULTI = C.MULTI
+		            AND C.RCV_DT <![CDATA[>]]> DATE_SUB(A.LAST_COM_DT,INTERVAL 1 MINUTE)
+		WHERE  A.IMEI = B.IMEI
+		AND    A.ENRGY = B.ENRGY
+		AND    IF(A.ENRGY='03','01',A.MACHN) = B.MACHN
+		AND    A.MULTI = B.MULTI
+		AND    B.RCV_DT <![CDATA[>]]> DATE_SUB(A.LAST_COM_DT,INTERVAL 1 MINUTE)
+		GROUP  BY A.IMEI, A.ENRGY, MACHN, A.MULTI
+		ORDER  BY LAST_REMS_SND_DT
+	</select>
+	<select id="RemsRtuSndRateDao.getDummyDataInfo" parameterType="map" resultType="rtuStatusVo">
+		SELECT A.IMEI AS imei, A.ENRGY AS enrgy, A.MACHN AS machn, A.MULTI AS multi, 
+		       A.LAST_REMS_SND_DT AS lastRemsSndDt,
+		       CONCAT(B.RCV_DATA<![CDATA[->>]]>'$."DATA"',IFNULL(CONCAT('\r\n',C.RCV_DATA<![CDATA[->>]]>'$."DATA"'),'')) AS originalData
+		FROM   (
+		        SELECT A.IMEI, A.ENRGY, IF(A.ENRGY='03','*',A.MACHN) AS MACHN, A.MULTI, MIN(A.LAST_COM_DT) AS LAST_COM_DT,
+		               DATE_FORMAT(MAX(A.LAST_REMS_SND_DT),'%Y-%m-%d %H:%i:%s') AS LAST_REMS_SND_DT
+		        FROM   TB_RTU B,
+		               TB_RTU_ENRGY_TYPE A
+		        WHERE  B.IMEI = #{imei}
+		        AND    B.IMEI = A.IMEI
+		        AND    A.EXP_DT <![CDATA[>]]> NOW()
+		        AND    A.ENRGY = #{enrgy}
+		        AND    IF(A.ENRGY='03','*',A.MACHN) = IF(A.ENRGY='03','*',#{machn})
+		        AND    A.MULTI = #{multi}
+		        GROUP  BY A.IMEI, A.ENRGY, IF(A.ENRGY='03','*',A.MACHN), A.MULTI
+		       ) A STRAIGHT_JOIN
+		       TB_RTU_RCV_DATA B
+		       LEFT OUTER JOIN TB_RTU_RCV_DATA C
+		            ON  B.IMEI = C.IMEI 
+		            AND B.ENRGY = C.ENRGY 
+		            AND C.ENRGY = '03'
+		            AND C.MACHN = '02'
+		            AND A.MULTI = C.MULTI
+		            AND C.RCV_DT <![CDATA[>]]> DATE_SUB(A.LAST_COM_DT,INTERVAL 1 MINUTE)
+		WHERE  A.IMEI = B.IMEI
+		AND    A.ENRGY = B.ENRGY
+		AND    IF(A.ENRGY='03','01',A.MACHN) = B.MACHN
+		AND    A.MULTI = B.MULTI
+		AND    B.RCV_DT <![CDATA[>]]> DATE_SUB(A.LAST_COM_DT,INTERVAL 1 MINUTE)
+		GROUP  BY A.IMEI, A.ENRGY, MACHN, A.MULTI
+		LIMIT  1
+	</select>
+</mapper>

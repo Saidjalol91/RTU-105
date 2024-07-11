@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.0.xsd">
+
+	<!-- 설비 통신상태 갱신 -->
+	<bean id="remsMachineComStatusJob" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+	    <property name="targetObject" ref="remsScheduleService" />
+	    <property name="targetMethod" value="machineComStatusUpdate" />
+	    <property name="concurrent" value="false" />
+	</bean>
+	
+	<!-- Dummy REMS 전송 -->
+	<bean id="remsRtuSndRateJob" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean">
+	    <property name="targetObject" ref="remsRtuSndRateService" />
+	    <property name="targetMethod" value="remsRtuSndRateProcess" />
+	    <property name="concurrent" value="false" />
+	</bean>
+
+	<bean id="remsMachineComStatusJobTrigger" class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">
+	    <property name="jobDetail" ref="remsMachineComStatusJob" />
+	    <property name="cronExpression" value="0 * * * * ?" />
+	</bean>
+	
+	<bean id="remsRtuSndRateJobTrigger" class="org.springframework.scheduling.quartz.CronTriggerFactoryBean">
+	    <property name="jobDetail" ref="remsRtuSndRateJob" />
+	    <property name="cronExpression" value="20 * * * * ?" />
+	</bean>
+
+	<bean id="remsJobScheduler" class="org.springframework.scheduling.quartz.SchedulerFactoryBean">
+	    <property name="triggers">
+	        <list>
+      		    <!--<ref bean="remsMachineComStatusJobTrigger"/>-->
+      		    <ref bean="remsRtuSndRateJobTrigger" />
+			</list>
+	    </property>
+	</bean>
+</beans>

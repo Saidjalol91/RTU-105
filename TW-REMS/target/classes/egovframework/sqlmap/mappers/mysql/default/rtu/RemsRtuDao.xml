@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="RemsRtuDao">	
+	<select id="RemsRtuDao.getRtuInfo" parameterType="string" resultType="rtuVo">
+		SELECT A.RTU_IDX, A.IMEI, A.DEV_ID, A.SERIAL_NO, A.MANUF_DATE, A.IMSI, A.LOCATION, A.IP_ADDR, A.USE_STATUS, A.SND_CD,
+		       A.FW_VERSION, A.BUILD, A.FW_UP_STATUS, A.RESET_STATUS, DATE_FORMAT(A.LAST_COM_DT,'%Y-%m-%d %H:%i:%s') AS LAST_COM_DT,
+		       DATE_FORMAT(A.REG_DT,'%Y-%m-%d %H:%i:%s') AS REG_DT, DATE_FORMAT(A.MOD_DT,'%Y-%m-%d %H:%i:%s') AS MOD_DT,
+		       DATE_FORMAT(A.EXP_DT,'%Y-%m-%d %H:%i:%s') AS EXP_DT, A.REG_MEM_IDX, A.EXP_MEM_IDX
+		FROM   TB_RTU A
+		<if test="value!=null and value!=''">
+		WHERE  A.IMEI = #{value}
+		LIMIT  1
+		</if>
+	</select>
+	<select id="RemsRtuDao.getRtuStatusInfo" parameterType="string" resultType="rtuStatusVo">
+		SELECT A.RTU_ENRGY_IDX, A.IMEI, A.ENRGY, A.MACHN, A.MULTI, A.PERIOD, A.AUTH_IDX,
+		       DATE_FORMAT(A.REG_DT,'%Y-%m-%d %H:%i:%s') AS REG_DT, DATE_FORMAT(A.MOD_DT,'%Y-%m-%d %H:%i:%s') AS MOD_DT,
+		       DATE_FORMAT(A.EXP_DT,'%Y-%m-%d %H:%i:%s') AS EXP_DT, A.REG_MEM_IDX, A.EXP_MEM_IDX
+		FROM   TB_RTU_ENRGY_TYPE A
+		WHERE  A.IMEI = #{value}
+	</select>
+	<select id="RemsRtuDao.getRemsAuthInfo" parameterType="map" resultType="remsAuthVo">
+		SELECT A.RTU_IDX, A.IMEI, A.DEV_ID, A.SERIAL_NO, A.MANUF_DATE, B.ENRGY, B.MACHN, B.MULTI, C.CID, C.AUTH_KEY
+		FROM   TB_RTU A,
+		       TB_RTU_ENRGY_TYPE B
+		       LEFT OUTER JOIN TB_REMS_AUTH_INFO C
+		            ON  B.AUTH_IDX = C.AUTH_IDX
+		WHERE  A.IMEI = B.IMEI
+		<if test="rtuIdx!=null and rtuIdx!=''">
+		AND   A.RTU_IDX = #{rtuIdx}
+		</if>
+	</select>
+	<select id="RemsRtuDao.getRtuMaintenanceStatus" parameterType="rtuStatusVo" resultType="map">
+		SELECT A.IMEI, A.RESET_REG_DT, A.FW_IDX, B.FW_NAME, B.FW_VERSION, FN_ENCRYPT(C.FILE_ATTACH_SEQ) AS FILE_KEY, C.FILE_ROUTE, C.REAL_NAME, C.FAKE_NAME, C.FILE_SIZE, C.EXT_NAME
+		FROM   (
+		        SELECT A.IMEI, A.FW_IDX, DATE_FORMAT(MAX(B.REG_DT),'%Y%m%d%H%i%s') AS RESET_REG_DT
+		        FROM   (
+		                SELECT A.IMEI, A.RESET_STATUS, MAX(FW_IDX) FW_IDX
+		                FROM   TB_RTU A
+		                       LEFT OUTER JOIN TB_RTU_FW_UPDT B
+		                            ON  A.IMEI = B.IMEI
+		                            AND B.INSTALL_DT IS NULL
+		                            AND A.FW_UP_STATUS = 'U'
+		                WHERE  A.IMEI = #{imei}
+		                GROUP  BY A.IMEI
+		               ) A
+		               LEFT OUTER JOIN TB_RTU_RESET B
+		                    ON  A.IMEI = B.IMEI
+		                    AND B.RESET_DT IS NULL
+		                    AND A.RESET_STATUS = 'U'
+		        GROUP  BY A.IMEI
+		       ) A
+		       LEFT OUTER JOIN TB_RTU_FW B
+		            ON  A.FW_IDX = B.FW_IDX
+		       LEFT OUTER JOIN TB_FILE_ATTACH C
+		            ON  C.PARENT_SEQ = B.FW_IDX
+		            AND C.PARENT_NAME = 'RTU_FW'
+		            AND C.INPUT_NAME = 'firmware'
+		LIMIT  1
+	</select>
+	<update id="RemsRtuDao.updateRtuFwDownResetDate" parameterType="rtuVo">
+        UPDATE (
+                SELECT A.IMEI, MAX(B.FW_IDX) FW_IDX, MAX(C.REG_DT) REG_DT
+                FROM   TB_RTU A
+                       LEFT OUTER JOIN TB_RTU_FW_UPDT B
+                            ON  A.IMEI = B.IMEI
+                            AND B.INSTALL_DT IS NULL
+                            AND B.DOWN_DT IS NULL
+                            AND A.FW_UP_STATUS = 'U'
+                       LEFT OUTER JOIN TB_RTU_RESET C
+                            ON  A.IMEI = C.IMEI
+                            AND C.RESET_DT IS NULL
+                            AND A.RESET_STATUS = 'U'
+                WHERE  A.IMEI = #{imei}
+                GROUP  BY A.IMEI
+               ) A STRAIGHT_JOIN
+               TB_RTU C
+               LEFT OUTER JOIN TB_RTU_FW_UPDT B
+                    ON  C.IMEI = B.IMEI
+                    AND A.FW_IDX = B.FW_IDX
+               LEFT OUTER JOIN TB_RTU_RESET D
+                    ON  C.IMEI = D.IMEI
+                    AND A.REG_DT = D.REG_DT
+        SET    B.DOWN_DT = NOW(),
+               C.FW_UP_STATUS = #{fwUpStatus},
+               C.RESET_STATUS = #{resetStatus}
+        WHERE  A.IMEI = C.IMEI
+	</update>
+	<update id="RemsRtuDao.updateRtuFwInstallDate" parameterType="rtuStatusVo">
+        UPDATE (
+                SELECT A.IMEI, A.FW_VERSION, MAX(FW_IDX) FW_IDX
+                FROM   TB_RTU A
+                       LEFT OUTER JOIN TB_RTU_FW_UPDT B
+                            ON  A.IMEI = B.IMEI
+                            AND B.INSTALL_DT IS NULL
+                            AND B.DOWN_DT IS NOT NULL
+                            AND A.FW_UP_STATUS = 'W'
+                WHERE  A.IMEI = #{imei}
+                GROUP  BY A.IMEI
+               ) A,
+               TB_RTU_FW_UPDT B,
+               TB_RTU C
+        SET    B.INSTALL_DT = NOW(),
+               C.FW_UP_STATUS = 'E',
+               B.INSTALL_STATUS = IF(C.FW_VERSION=#{fwVer},'F','S')
+        WHERE  A.IMEI = B.IMEI
+        AND    A.FW_IDX = B.FW_IDX
+        AND    A.IMEI = C.IMEI
+	</update>
+	<update id="RemsRtuDao.updateRtuStatus" parameterType="rtuVo">
+		UPDATE TB_RTU
+		SET    IP_ADDR           = #{ipAddr},
+		       FW_VERSION        = #{fwVersion},
+		       BUILD             = #{build},
+		       FW_UP_STATUS      = #{fwUpStatus},
+		       RESET_STATUS      = #{resetStatus}
+		WHERE  IMEI = #{imei}
+	</update>
+	<insert id="RemsRtuDao.insertRtuIpAddr" parameterType="rtuVo">
+		INSERT INTO TB_RTU_IP_ADDR (IMEI, IP_ADDR, REG_DT)
+		VALUES (#{imei}, #{ipAddr}, NOW())
+	</insert>
+	<insert id="RemsRtuDao.insertRtuRcvData" parameterType="map">
+		INSERT INTO TB_RTU_RCV_DATA (IMEI, ENRGY, MACHN, MULTI, ERR_CODE, RCV_HEADERS, RCV_DATA, IP_ADDR, RCV_DT, RES_CODE, RES_DATA)
+		VALUES (#{imei}, #{enrgy}, #{machn}, #{multi}, #{errCode}, #{rcvHeaders}, #{rcvData}, #{ipAddr}, NOW(), #{resCode}, #{resData});
+		<selectKey keyProperty="rcvIdx" resultType="long" order="AFTER">
+			SELECT LAST_INSERT_ID()
+		</selectKey>
+	</insert>
+	<insert id="RemsRtuDao.insertRtuSndData" parameterType="map">
+		INSERT INTO TB_RTU_SND_DATA (IMEI, ENRGY, MACHN, MULTI, ERR_CODE, CID, AUTH_KEY, RCV_IDX, SND_HEADERS, SND_DATA, SND_DT, RES_DATA)
+		VALUES (#{imei}, #{enrgy}, #{machn}, #{multi}, #{errCode}, #{cid}, #{authKey}, #{rcvIdx}, #{sndHeaders}, #{sndData}, NOW(), #{resData});
+	</insert>
+	<insert id="RemsRtuDao.insertRtu" parameterType="rtuVo">
+		INSERT INTO TB_RTU (IMEI, DEV_ID, SERIAL_NO, MANUF_DATE, CTN, IMSI, LOCATION, IP_ADDR, USE_STATUS, 
+		            FW_VERSION, BUILD, FW_UP_STATUS, RESET_STATUS, REG_DT, MOD_DT, EXP_DT, REG_MEM_IDX, EXP_MEM_IDX)
+		VALUES (#{imei}, #{devId}, #{serialNo}, #{manufDate}, #{ctn}, #{imsi}, #{location}, #{ipAddr}, #{useStatus},
+		        #{fwVersion}, #{build}, #{fwUpStatus}, #{resetStatus}, NOW(), NOW(), STR_TO_DATE('99991231235959','%Y%m%d%H%i%s'), NULL, NULL)
+		ON DUPLICATE KEY
+		UPDATE  IMSI = #{imsi},
+		        CTN = #{ctn},
+		        FW_VERSION = #{fwVersion},
+		        MOD_DT = NOW()
+	</insert>
+	<update id="RemsRtuDao.updateRtuInfo" parameterType="rtuVo">
+		UPDATE TB_RTU A
+		       LEFT OUTER JOIN TB_RTU_FW_UPDT B
+		            ON  A.FW_UP_STATUS = 'W'
+		            AND A.IMEI = B.IMEI
+		            AND B.DOWN_DT IS NOT NULL
+		            AND B.INSTALL_DT IS NULL
+		       LEFT OUTER JOIN TB_RTU_RESET C
+		            ON  A.RESET_STATUS = 'W'
+		            AND A.IMEI = C.IMEI
+		            AND C.RESET_DT IS NULL
+		SET    A.IMSI = #{imsi},
+		<if test="ctn!=null and ctn!=''">
+		       A.CTN = #{ctn},
+		</if>
+		       A.FW_VERSION = #{fwVersion},
+		       A.FW_UP_STATUS = IF(A.FW_UP_STATUS='W','E',A.FW_UP_STATUS),
+		       A.RESET_STATUS = IF(A.RESET_STATUS='W','E',A.RESET_STATUS),
+		       A.MOD_DT = NOW(),
+		       B.INSTALL_DT = NOW(),
+		       B.INSTALL_STATUS = IF(A.FW_VERSION=#{fwVersion},'F','S'),
+		       C.RESET_DT = NOW()
+		WHERE  A.IMEI = #{imei}
+	</update>
+	<insert id="RemsRtuDao.insertRtuEnrgyType" parameterType="rtuStatusVo">
+		INSERT INTO TB_RTU_ENRGY_TYPE (IMEI, ENRGY, MACHN, MULTI, PERIOD, AUTH_IDX, REG_DT, MOD_DT, EXP_DT, REG_MEM_IDX, EXP_MEM_IDX)
+		VALUES (#{imei}, #{enrgy}, #{machn}, #{multi}, #{period}, -1, NOW(), NOW(), STR_TO_DATE('99991231235959','%Y%m%d%H%i%s'), NULL, NULL)
+		ON DUPLICATE KEY
+		UPDATE  MOD_DT = NOW()
+	</insert>
+	<update id="RemsRtuDao.updateRtuEnrgyTypeInfo" parameterType="rtuStatusVo">
+		UPDATE TB_RTU_ENRGY_TYPE
+		SET    PERIOD = #{period},
+		       MOD_DT = NOW()
+		WHERE  IMEI = #{imei}
+		AND    ENRGY = #{enrgy}
+		AND    MACHN = #{machn}
+		AND    MULTI = #{multi}
+	</update>
+	<update id="RemsRtuDao.updateRtuEnrgyTypeLastComDt" parameterType="rtuStatusVo">
+		UPDATE TB_RTU_ENRGY_TYPE A,
+		       TB_RTU B
+		SET    A.LAST_COM_DT = NOW(),
+		       B.LAST_COM_DT = NOW()
+		WHERE  A.IMEI = #{imei}
+		AND    A.ENRGY = #{enrgy}
+		AND    A.MACHN = #{machn}
+		AND    A.MULTI = #{multi}
+		AND    A.IMEI = B.IMEI
+	</update>
+	<update id="RemsRtuDao.updateRtuEnrgyTypeLastRemsSndDt" parameterType="rtuStatusVo">
+		UPDATE TB_RTU_ENRGY_TYPE A
+		SET    A.LAST_REMS_SND_DT = NOW(),
+		<if test="responseCode==200">
+		       A.COM_STATUS = '00',
+		</if>
+		       A.COM_RES_CODE = #{responseCode}
+		WHERE  A.IMEI = #{imei}
+		AND    A.ENRGY = #{enrgy}
+		AND    A.MACHN = #{machn}
+		AND    A.MULTI = #{multi}
+	</update>
+	<update id="RemsRtuDao.updateScheduleRtuEnrgyComStatus" parameterType="rtuStatusVo">
+		UPDATE (
+		        SELECT A.RTU_ENRGY_IDX, A.IMEI, A.ENRGY, A.MACHN, A.MULTI, A.RCV_IDX, A.RCV_DT,
+		               IF(A.RCV_DT IS NULL,'03',IF(A.RCV_DT <![CDATA[<=]]> DATE_SUB(NOW(),INTERVAL 3 HOUR),'02',IF(A.RCV_DT <![CDATA[<=]]> DATE_SUB(NOW(),INTERVAL 1 HOUR),'01','00'))) COM_STATUS
+		        FROM   (
+		                SELECT A.RTU_ENRGY_IDX, A.IMEI, A.ENRGY, A.MACHN, A.MULTI, MAX(B.RCV_IDX) RCV_IDX, MAX(B.RCV_DT) RCV_DT
+		                FROM   TB_RTU Z STRAIGHT_JOIN
+		                       TB_RTU_ENRGY_TYPE A
+		                       LEFT OUTER JOIN TB_RTU_RCV_DATA B
+		                            ON  B.RCV_DT <![CDATA[>]]> DATE_SUB(NOW(),INTERVAL 8 HOUR)
+		                            AND A.IMEI = B.IMEI
+		                            AND A.ENRGY = B.ENRGY
+		                            AND A.MACHN = B.MACHN
+		                            AND A.MULTI = B.MULTI
+		                WHERE  Z.EXP_DT <![CDATA[>]]> NOW()
+		                AND    Z.IMEI = A.IMEI
+		                AND    A.EXP_DT <![CDATA[>]]> NOW()
+		                AND    Z.USE_STATUS != 'C'
+		                AND    Z.USE_STATUS != 'D'
+		                GROUP  BY A.RTU_ENRGY_IDX
+		               ) A
+		       ) A,
+		       TB_RTU_ENRGY_TYPE B
+		SET    B.COM_STATUS = A.COM_STATUS
+		WHERE  A.RTU_ENRGY_IDX = B.RTU_ENRGY_IDX
+		AND    IFNULL(B.COM_STATUS,'') != A.COM_STATUS
+	</update>
+	<update id="RemsRtuDao.updateScheduleRtuComStatus" parameterType="rtuVo">
+		UPDATE (
+		        SELECT A.IMEI, IFNULL(MAX(A.COM_STATUS),'03') COM_STATUS
+		        FROM   TB_RTU_ENRGY_TYPE A
+		        WHERE  A.EXP_DT <![CDATA[>]]> NOW()
+		        GROUP  BY A.IMEI
+		       ) A,
+		       TB_RTU B
+		SET    B.COM_STATUS = A.COM_STATUS,
+		       B.USE_STATUS = IF(B.USE_STATUS='C' AND A.COM_STATUS!='00',B.USE_STATUS,IF(A.COM_STATUS='03','F','G'))
+		WHERE  A.IMEI = B.IMEI
+	</update>
+</mapper>

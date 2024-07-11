@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="FileDAO">
+
+	<!-- 파일 등록-->
+	<insert id="FileDAO.insertFile" parameterType="fileVo">
+		INSERT INTO TB_FILE_ATTACH (PARENT_SEQ, PARENT_NAME, INPUT_NAME, REAL_NAME, FAKE_NAME, FILE_ROUTE, EXT_NAME, FILE_SIZE, ORDER_NO, HIT )
+		SELECT #{parentSeq} AS PARENT_SEQ, #{parentName} AS PARENT_NAME, #{inputName} AS INPUT_NAME, #{realName} AS REAL_NAME, #{fakeName} AS FAKE_NAME, 
+		       #{fileRoute} AS FILE_ROUTE, #{extName} AS EXT_NAME, #{fileSize} AS FILE_SIZE, IFNULL(MAX(A.ORDER_NO),0)+1 AS ORDER_NO, 0 AS ORDER_NO
+		FROM   TB_FILE_ATTACH A
+		WHERE  A.PARENT_SEQ = #{parentSeq} 
+		AND    A.PARENT_NAME = #{parentName} 
+		AND    A.INPUT_NAME = #{inputName}
+		<selectKey resultType="long" order="AFTER" keyProperty="fileAttachSeq">
+			SELECT LAST_INSERT_ID()
+		</selectKey>
+	</insert>
+
+	<!-- 파일 방문횟수 증가 -->
+	<update id="FileDAO.hitFile" parameterType="fileVo">
+		UPDATE TB_FILE_ATTACH 
+		SET    HIT = HIT + 1
+		WHERE  FILE_ATTACH_SEQ = FN_DECRYPT(#{fileKey})
+	</update>
+
+	<!-- 파일 목록가져오기-->
+	<select id="FileDAO.getFileList" parameterType="fileVo" resultType="map">
+		SELECT FN_ENCRYPT(FILE_ATTACH_SEQ) FILE_KEY, FILE_ATTACH_SEQ, PARENT_SEQ, PARENT_NAME, INPUT_NAME, REAL_NAME, FAKE_NAME, FILE_ROUTE, EXT_NAME, FILE_SIZE, ORDER_NO, HIT, DATE_FORMAT(REG_DT,'%Y%m%d%H%i%s') AS REG_DT
+		FROM   TB_FILE_ATTACH
+		WHERE  PARENT_SEQ = #{parentSeq}
+		AND    PARENT_NAME = #{parentName}
+		<if test="inputName!=null and inputName!=''">
+		AND    INPUT_NAME = #{inputName}
+		</if>
+		ORDER  BY ORDER_NO ASC
+	</select>
+
+	<!-- 파일정보 가져오기 -->
+	<select id="FileDAO.getFileInfoByKey" parameterType="fileVo" resultType="map">
+		SELECT FN_ENCRYPT(FILE_ATTACH_SEQ) FILE_KEY, FILE_ATTACH_SEQ, PARENT_SEQ, PARENT_NAME, INPUT_NAME, REAL_NAME, FAKE_NAME, FILE_ROUTE, EXT_NAME, FILE_SIZE, ORDER_NO, HIT, DATE_FORMAT(REG_DT,'%Y%m%d%H%i%s') AS REG_DT
+		FROM   TB_FILE_ATTACH
+		WHERE  FILE_ATTACH_SEQ = FN_DECRYPT(#{fileKey})
+	</select>
+
+	<!-- 파일정보 가져오기 -->
+	<select id="FileDAO.getFileInfo" parameterType="fileVo" resultType="map">
+		SELECT FN_ENCRYPT(FILE_ATTACH_SEQ) FILE_KEY, FILE_ATTACH_SEQ, PARENT_SEQ, PARENT_NAME, INPUT_NAME, REAL_NAME, FAKE_NAME, FILE_ROUTE, EXT_NAME, FILE_SIZE, ORDER_NO, HIT, DATE_FORMAT(REG_DT,'%Y%m%d%H%i%s') AS REG_DT
+		FROM   TB_FILE_ATTACH
+		WHERE  FILE_ATTACH_SEQ = #{fileAttachSeq}
+	</select>
+	<delete id="FileDAO.deleteFile" parameterType="fileVo">
+		DELETE FROM TB_FILE_ATTACH 
+		<if test="fileKey!=null and fileKey!=''">
+		WHERE  FILE_ATTACH_SEQ = FN_DECRYPT(#{fileKey})
+		</if>
+		<if test="fileKey==null or fileKey==''">
+		WHERE  FILE_ATTACH_SEQ = #{fileAttachSeq}
+		</if>
+	</delete>
+</mapper>
